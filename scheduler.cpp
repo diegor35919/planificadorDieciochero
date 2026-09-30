@@ -76,3 +76,109 @@ void Scheduler::dfs(const string& id,
     }
     in_stack.erase(id);
 }
+
+// ─────────────────────────────────────────────
+// ¿Quedan nodos sin terminar?
+// ─────────────────────────────────────────────
+bool Scheduler::has_pending() const {
+    for (const auto& [id, node] : nodes_) {
+        if (node.state != NodeState::DONE &&
+            node.state != NodeState::FAILED &&
+            node.state != NodeState::ABORTED) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ─────────────────────────────────────────────
+// Devuelve IDs listos en orden FIFO y los saca de la cola
+// ─────────────────────────────────────────────
+vector<string> Scheduler::get_ready_ids() {
+    vector<string> ready;
+    while (!ready_queue_.empty()) {
+        ready.push_back(ready_queue_.front());
+        ready_queue_.pop();
+    }
+    return ready;
+}
+
+// ─────────────────────────────────────────────
+// Marcar nodo como RUNNING
+// ─────────────────────────────────────────────
+void Scheduler::mark_running(const string& id, pid_t pid, int duration_ms,
+                              int read_fd, int write_fd) {
+    auto& node          = nodes_.at(id);
+    node.state          = NodeState::RUNNING;
+    node.pid            = pid;
+    node.duration_ms    = duration_ms;
+    node.pipe.read_fd   = read_fd;
+    node.pipe.write_fd  = write_fd;
+}
+
+// ─────────────────────────────────────────────
+// Marcar nodo como DONE y propagar a sucesores
+// ─────────────────────────────────────────────
+void Scheduler::mark_done(const string& id) {
+    auto& node = nodes_.at(id);
+    node.state = NodeState::DONE;
+
+    // Decrementar dependencias de sucesores
+    for (const auto& succ_id : node.successors) {
+        auto& succ = nodes_.at(succ_id);
+        // Solo procesar si el sucesor no ha sido abortado
+        if (succ.state == NodeState::ABORTED || succ.state == NodeState::FAILED) continue;
+
+        --succ.pending_deps;
+        if (succ.pending_deps == 0) {
+            succ.state = NodeState::READY;
+            ready_queue_.push(succ_id);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// Marcar nodo como FAILED y propagar ABORTED
+// ─────────────────────────────────────────────
+void Scheduler::mark_failed(const string& id) {
+    nodes_.at(id).state = NodeState::FAILED;
+    // Propagar aborto a toda la sub-rama que dependía de este nodo
+    for (const auto& succ_id : nodes_.at(id).successors) {
+        abort_subtree(succ_id);
+    }
+}
+
+void Scheduler::mark_aborted(const string& id) {
+    nodes_.at(id).state = NodeState::ABORTED;
+}
+
+void Scheduler::abort_subtree(const string& id) {
+    auto& node = nodes_.at(id);
+    if (node.state == NodeState::ABORTED || node.state == NodeState::FAILED) return;
+    node.state = NodeState::ABORTED;
+    cerr << "[SCHEDULER] Actividad \"" << id << "\" abortada por fallo de dependencia.\n";
+    for (const auto& succ_id : node.successors) {
+        abort_subtree(succ_id);
+    }
+}
+
+// ─────────────────────────────────────────────
+// Accesores
+// ─────────────────────────────────────────────
+Node& Scheduler::get_node(const string& id) {
+    return nodes_.at(id);
+}
+
+const Node& Scheduler::get_node(const string& id) const {
+    return nodes_.at(id);
+}
+
+vector<string> Scheduler::get_running_ids() const {
+    vector<string> running;
+    for (const auto& [id, node] : nodes_) {
+        if (node.state == NodeState::RUNNING) {
+            running.push_back(id);
+        }
+    }
+    return running;
+}
