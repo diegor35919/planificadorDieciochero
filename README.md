@@ -100,3 +100,9 @@ el programa termina con un mensaje claro en lugar de colgarse indefinidamente.
 ### Propagación de fallos en cascada
 `abort_subtree()` recorre recursivamente los sucesores de un nodo fallido
 y los marca como ABORTED, aislando el error sin afectar ramas independientes.
+
+## Process Manager y Main
+
+Aquí agregamos la ejecución de las actividades:
+- **process_manager:** Hace el trabajo de los procesos. Lanza las tareas, les asigna un tiempo al azar si no tienen, revisa los pipes para los mensajes de confirmación y ataja el Ctrl+C (la Seremi) para cancelar todo si es necesario.
+- **main:** Controla el flujo. Revisa el límite K, encola las tareas que están listas y se asegura de no pasarse del límite de procesos corriendo al mismo tiempo.
