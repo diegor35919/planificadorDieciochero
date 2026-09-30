@@ -1,0 +1,13 @@
+# Binarios y objetos compilados
+*.o
+*.out
+planificador
+
+# Archivos de editor
+*.swp
+*~
+.vscode/
+.idea/
+
+# macOS
+.DS_Store

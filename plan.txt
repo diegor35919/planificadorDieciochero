@@ -1,0 +1,10 @@
+# plan.txt — Ejemplo del enunciado: Ramada del señor Loyola
+# Formato: ID_Actividad : Nombre_Actividad : tiempo_ms : [Dependencia1, Dependencia2, ...]
+# Si tiempo_ms está vacío, se asigna aleatoriamente entre 100 y 5000 ms.
+
+1 : prender_carbon  : 500  :
+2 : comprar_carne   : 1200 :
+3 : comprar_pan     : 300  :
+4 : asar_longaniza  : 800  : 1, 2
+5 : armar_choripan  : 250  : 3, 4
+6 : servir_mesa     : 100  : 5
