@@ -22,6 +22,9 @@ Scheduler::Scheduler(const vector<Activity>& activities) {
         nodes_[act.id]    = node;
     }
 
+    // Todos los nodos comienzan como pendientes
+    pending_count_ = static_cast<int>(nodes_.size());
+
     // 2) Construir lista de sucesores (aristas inversas) y verificar que los deps existan
     for (auto& [id, node] : nodes_) {
         for (const auto& dep_id : node.activity.deps) {
@@ -78,17 +81,10 @@ void Scheduler::dfs(const string& id,
 }
 
 // ─────────────────────────────────────────────
-// ¿Quedan nodos sin terminar?
+// ¿Quedan nodos sin terminar? — O(1) con contador
 // ─────────────────────────────────────────────
 bool Scheduler::has_pending() const {
-    for (const auto& [id, node] : nodes_) {
-        if (node.state != NodeState::DONE &&
-            node.state != NodeState::FAILED &&
-            node.state != NodeState::ABORTED) {
-            return true;
-        }
-    }
-    return false;
+    return pending_count_ > 0;
 }
 
 // ─────────────────────────────────────────────
@@ -122,6 +118,7 @@ void Scheduler::mark_running(const string& id, pid_t pid, int duration_ms,
 void Scheduler::mark_done(const string& id) {
     auto& node = nodes_.at(id);
     node.state = NodeState::DONE;
+    --pending_count_;
 
     // Decrementar dependencias de sucesores
     for (const auto& succ_id : node.successors) {
@@ -142,6 +139,7 @@ void Scheduler::mark_done(const string& id) {
 // ─────────────────────────────────────────────
 void Scheduler::mark_failed(const string& id) {
     nodes_.at(id).state = NodeState::FAILED;
+    --pending_count_;
     // Propagar aborto a toda la sub-rama que dependía de este nodo
     for (const auto& succ_id : nodes_.at(id).successors) {
         abort_subtree(succ_id);
@@ -149,13 +147,18 @@ void Scheduler::mark_failed(const string& id) {
 }
 
 void Scheduler::mark_aborted(const string& id) {
-    nodes_.at(id).state = NodeState::ABORTED;
+    auto& node = nodes_.at(id);
+    if (node.state != NodeState::ABORTED) {
+        node.state = NodeState::ABORTED;
+        --pending_count_;
+    }
 }
 
 void Scheduler::abort_subtree(const string& id) {
     auto& node = nodes_.at(id);
     if (node.state == NodeState::ABORTED || node.state == NodeState::FAILED) return;
     node.state = NodeState::ABORTED;
+    --pending_count_;
     cerr << "[SCHEDULER] Actividad \"" << id << "\" abortada por fallo de dependencia.\n";
     for (const auto& succ_id : node.successors) {
         abort_subtree(succ_id);

@@ -122,7 +122,12 @@ int main(int argc, char* argv[]) {
             if (launched > 0) {
                 running_count += launched;
             } else {
-                // fork falló → scheduler ya marcó como FAILED
+                // Si el nodo sigue en READY (diferido por EMFILE), volver a encolar
+                NodeState st2 = sched.get_node(id).state;
+                if (st2 == NodeState::READY) {
+                    deferred_ready.push_back(id);
+                }
+                // Si está en FAILED ya fue marcado por launch_ready
             }
         }
 
