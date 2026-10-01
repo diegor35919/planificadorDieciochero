@@ -19,19 +19,20 @@ enum class NodeState {
 
 // Extremos de un pipe de notificación por actividad
 struct ActivityPipe {
-    int read_fd  = -1;   // fd que el padre usa para recibir resultado
-    int write_fd = -1;   // fd que el hijo usa para enviar resultado
+    int read_fd  = -1;   // fd que el padre usa para recibir resultado del hijo
+    int write_fd = -1;   // fd que el hijo usa para enviar resultado al padre
 };
 
 // Nodo del grafo que engloba toda la información de una actividad
 struct Node {
     Activity             activity;
-    NodeState            state       = NodeState::PENDING;
-    pid_t                pid         = -1;   // PID del proceso hijo (-1 si no lanzado)
-    int                  duration_ms = 0;    // Duración efectiva (aleatorio si era -1)
-    ActivityPipe         pipe;               // Pipe de notificación padre↔hijo
-    std::vector<std::string> successors;     // IDs de nodos que dependen de éste
-    int                  pending_deps = 0;   // Cuántas dependencias faltan por completar
+    NodeState            state           = NodeState::PENDING;
+    pid_t                pid             = -1;   // PID del proceso hijo (-1 si no lanzado)
+    int                  duration_ms     = 0;    // Duración efectiva (aleatorio si era -1)
+    ActivityPipe         pipe;                   // Pipe hijo→padre (resultado)
+    std::vector<std::string> successors;         // IDs de nodos que dependen de éste
+    int                  pending_deps    = 0;    // Cuántas dependencias faltan por completar
+    std::string          completion_msg;         // Mensaje OK enviado al padre (guardado para las dependientes)
 };
 
 // Grafo DAG + Ready Queue + lógica de dependencias
@@ -41,7 +42,8 @@ public:
     // Lanza std::runtime_error si hay ciclos o IDs duplicados.
     explicit Scheduler(const std::vector<Activity>& activities);
 
-    // Devuelve verdadero si quedan nodos sin finalizar (DONE/FAILED/ABORTED)
+    // Devuelve verdadero si quedan nodos sin finalizar (DONE/FAILED/ABORTED).
+    // Implementado con contador O(1) para evitar O(N) por iteración.
     bool has_pending() const;
 
     // Devuelve los nodos listos para ejecutar (en orden FIFO)
@@ -78,6 +80,7 @@ public:
 private:
     std::unordered_map<std::string, Node> nodes_;
     std::queue<std::string>               ready_queue_;
+    int                                   pending_count_ = 0; // contador O(1) para has_pending()
 
     // Detección de ciclos (DFS sobre el DAG)
     void detect_cycles() const;

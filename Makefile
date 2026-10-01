@@ -1,5 +1,5 @@
 CXX      := g++
-CXXFLAGS := -Wall -Wextra -std=c++17
+CXXFLAGS := -Wall -Wextra -std=c++17 -lpthread
 TARGET   := planificador
 SRCS     := main.cpp parser.cpp scheduler.cpp process_manager.cpp
 OBJS     := $(SRCS:.cpp=.o)
