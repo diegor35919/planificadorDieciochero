@@ -1,4 +1,4 @@
-# Planificador Dieciochero 🎉
+# Planificador Dieciochero
 **Tarea 1 — Procesos, Tuberías y Señales | Sistemas Operativos**
 
 Simulador y planificador de actividades basado en un Grafo Acíclico Dirigido (DAG),
